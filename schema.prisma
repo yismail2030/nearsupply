@@ -1,0 +1,212 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  password      String
+  name          String
+  phone         String?
+  company       String?
+  address       String?
+  city          String?
+  country       String?
+  website       String?
+  description   String?
+  logo          String?
+  role          UserRole       @default(CLIENT)
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  notifications Notification[]
+  products      Product[]
+  proposals     Proposal[]
+  rfqsAsClient  RFQRequest[]   @relation("ClientRFQs")
+  settings      SiteSettings?
+
+  @@index([email])
+  @@index([role])
+}
+
+model SiteSettings {
+  id           String   @id @default(cuid())
+  siteName     String   @default("NearSupply")
+  logo         String?
+  primaryColor String?
+  userId       String   @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id])
+}
+
+model Product {
+  id                   String        @id @default(cuid())
+  name                 String
+  description          String?
+  category             String
+  sku                  String?
+  unitPrice            Float?
+  currency             String        @default("USD")
+  minimumOrderQuantity Int?
+  unit                 String?
+  attachments          String?
+  isFeatured           Boolean       @default(false)
+  status               ProductStatus @default(ACTIVE)
+  supplierId           String
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  supplier             User          @relation(fields: [supplierId], references: [id])
+
+  @@index([supplierId])
+  @@index([category])
+  @@index([status])
+}
+
+model RFQRequest {
+  id                String         @id @default(cuid())
+  requestNumber     String         @unique
+  requestType       RFQRequestType @default(PRODUCT)
+  title             String
+  description       String?
+  category          String?
+  budget            Float?
+  currency          String         @default("USD")
+  submissionDate    DateTime       @default(now())
+  deadlineDate      DateTime?
+  deliveryDate      DateTime?
+  deliveryTerms     String?
+  deliveryAddress   String?
+  notes             String?
+  internalNotes     String?
+  attachments       String?
+  status            RFQStatus      @default(DRAFT)
+  clientId          String
+  assignedSuppliers String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  proposals         Proposal[]
+  lineItems         RFQItem[]
+  client            User           @relation("ClientRFQs", fields: [clientId], references: [id])
+
+  @@index([clientId])
+  @@index([status])
+  @@index([requestNumber])
+}
+
+model RFQItem {
+  id             String     @id @default(cuid())
+  rfqId          String
+  name           String
+  quantity       Float      @default(1)
+  unit           String?
+  specifications String?
+  link           String?
+  imageUrl       String?
+  sortOrder      Int        @default(0)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  rfq            RFQRequest @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+
+  @@index([rfqId])
+}
+
+model Proposal {
+  id              String         @id @default(cuid())
+  proposalNumber  String         @unique
+  rfqId           String
+  supplierId      String
+  lineItems       String?
+  subtotal        Float          @default(0)
+  currency        String         @default("USD")
+  attachments     String?
+  notes           String?
+  deliveryTerms   String?
+  validity        String?
+  status          ProposalStatus @default(DRAFT)
+  adminMargin     Float          @default(0)
+  shippingCost    Float          @default(0)
+  taxPercentage   Float          @default(0)
+  taxAmount       Float          @default(0)
+  grandTotal      Float          @default(0)
+  termsConditions String?
+  emailSentAt     DateTime?
+  emailSentTo     String?
+  isShared        Boolean        @default(false)
+  sharedAt        DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  supplier        User           @relation(fields: [supplierId], references: [id])
+  rfq             RFQRequest     @relation(fields: [rfqId], references: [id])
+
+  @@index([rfqId])
+  @@index([supplierId])
+  @@index([status])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      String   @default("info")
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+}
+
+model UploadedFile {
+  id         String   @id @default(cuid())
+  name       String
+  url        String
+  size       Int
+  type       String
+  uploadedBy String?
+  createdAt  DateTime @default(now())
+
+  @@index([uploadedBy])
+}
+
+enum UserRole {
+  ADMIN
+  SUPPLIER
+  CLIENT
+}
+
+enum RFQStatus {
+  DRAFT
+  SUBMITTED
+  ASSIGNED
+  QUOTES_RECEIVED
+  UNDER_REVIEW
+  COMPLETED
+  CANCELLED
+}
+
+enum RFQRequestType {
+  PRODUCT
+  SERVICE
+}
+
+enum ProposalStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+}
